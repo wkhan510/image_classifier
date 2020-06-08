@@ -47,7 +47,6 @@ def main():
     train(device_model, model, dataloader, optimizer, criterion)
     network_test(device_model, model, dataloader, optimizer, criterion)
     checkpoint(model, image_datasets, optimizer, lr)
-    #model = load_checkpoint(in_arg.save_dir)
     save_model = load_checkpoint(in_arg.save_dir)
     
     probs, classes = predict(path, save_model, topk=5)
