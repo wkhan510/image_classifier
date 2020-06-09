@@ -196,8 +196,8 @@ def network_test(device, model, dataloader, optimizer, criterion):
                 # now we need to set out training loss back to zero and model back to training 
                     running_loss = 0
                     model.train()
-# Save the checkpoint 
-def checkpoint(model, image_datasets, optimizer, epoch_s, learning_rate):
+# Save the checkpoint -
+def checkpoint(model, image_datasets, optimizer, learning_rate, epoch_s):
     
     model.class_to_idx = image_datasets['train_data'].class_to_idx
 
