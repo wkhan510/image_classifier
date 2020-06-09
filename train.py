@@ -215,7 +215,7 @@ def checkpoint(model, image_datasets, optimizer, epoch_s, learning_rate):
     torch.save(checkpoint, 'checkpoint.pth')
     return None
 
-Write a function that loads a checkpoint and rebuilds the model
+#Write a function that loads a checkpoint and rebuilds the model
 def load_checkpoint(filepath, optimizer):
     checkpoint = torch.load(filepath)
     if checkpoint['arch'] == "vgg16":
