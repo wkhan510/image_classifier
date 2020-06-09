@@ -210,19 +210,22 @@ def checkpoint(model, image_datasets, optimizer, epoch_s, learning_rate):
                   'classifier': model.classifier,
                   'state_dict': model.state_dict(),
                   'class_to_idx': image_datasets['train_data'].class_to_idx,
-                  'optimizer_state_dict': optimizer.state_dict()}
+                  'optimizer': optimizer}
 
     torch.save(checkpoint, 'checkpoint.pth')
     return None
 
 #Write a function that loads a checkpoint and rebuilds the model
-def load_checkpoint(filepath, optimizer):
-    checkpoint = torch.load(filepath)
+def load_checkpoint(filepath):
+    checkpoint = torch.load(filepath, map_location=lambda storage, loc: storage)
     if checkpoint['arch'] == "vgg16":
         model=models.vgg16(pretrained = True)
     model.classifier = checkpoint['classifier']
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    model.class_to_idx = checkpoint['class_to_idx']
     model.load_state_dict(checkpoint['state_dict'])
+    model.optimizer = checkpoint['optimizer']
+    model.class_to_idx = checkpoint['class_to_idx']
     
+    for param in model.parameters():
+        param.requires_grad = False   
+                          
     return model
