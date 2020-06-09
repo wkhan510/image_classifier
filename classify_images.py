@@ -46,7 +46,7 @@ def main():
     model, criterion, optimizer = classify_network(arch, dropout, lr)
     train(device_model, model, dataloader, optimizer, criterion)
     network_test(device_model, model, dataloader, optimizer, criterion)
-    checkpoint(model, image_datasets, optimizer, lr)
+    checkpoint(model, image_datasets, optimizer, lr, epoch_s)
     save_model = load_checkpoint(save_checkpoint)
     
     probs, classes = predict(test_image, save_model, topk=5)
