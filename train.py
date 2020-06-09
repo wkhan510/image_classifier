@@ -197,12 +197,12 @@ def network_test(device, model, dataloader, optimizer, criterion):
                     running_loss = 0
                     model.train()
 # Save the checkpoint 
-def checkpoint(model, image_datasets, optimizer, learning_rate):
+def checkpoint(model, image_datasets, optimizer, epoch_s, learning_rate):
     
     model.class_to_idx = image_datasets['train_data'].class_to_idx
 
     checkpoint = {'arch': 'vgg16',
-                  'epochs':5,
+                  'epochs':epoch_s,
                   'input_size': 25088,
                   'output_size': 102,
                   'hidden_layer_size': 4096,
@@ -213,15 +213,15 @@ def checkpoint(model, image_datasets, optimizer, learning_rate):
                   'optimizer_state_dict': optimizer.state_dict()}
 
     torch.save(checkpoint, 'checkpoint.pth')
+    return None
 
 Write a function that loads a checkpoint and rebuilds the model
-def load_checkpoint(filepath):
+def load_checkpoint(filepath, optimizer):
     checkpoint = torch.load(filepath)
     if checkpoint['arch'] == "vgg16":
         model=models.vgg16(pretrained = True)
-    #model.arch = checkpoint['arch']
     model.classifier = checkpoint['classifier']
-    model.optimizer =  checkpoint['optimizer_state_dict']
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     model.class_to_idx = checkpoint['class_to_idx']
     model.load_state_dict(checkpoint['state_dict'])
     
