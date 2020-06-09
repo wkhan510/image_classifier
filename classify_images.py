@@ -49,7 +49,7 @@ def main():
     checkpoint(model, image_datasets, optimizer, lr)
     save_model = load_checkpoint(save_checkpoint)
     
-    probs, classes = predict(path, save_model, topk=5)
+    probs, classes = predict(test_image, save_model, topk=5)
     print(probs)
     print(classes)
     #print("flower_names", mapping(category_name))
