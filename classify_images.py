@@ -32,7 +32,7 @@ def main():
     lr = in_arg.learning_rate
     save_checkpoint = in_arg.save_dir
     category_name = in_arg.cat_name
-    epochs = in_arg.epochs
+    epoch_s = in_arg.epochs
     dropout = in_arg.dropout
     
 
