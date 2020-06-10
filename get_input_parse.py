@@ -8,6 +8,8 @@ def get_input_args():
     
     
     # command line arguments as mentioned above using add_argument() from ArguementParser method
+    parser.add_argument('--test_image', type = str, default='./flowers/test/34/image_06961.jpg',
+                                 help = 'path to the test image')
     parser.add_argument('--data_dir', type = str, default="./flowers/",
                                  help = 'path to the flowers images')
     parser.add_argument('--gpu', action = "store", default='gpu',
