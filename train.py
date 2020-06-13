@@ -1,7 +1,5 @@
-
-import matplotlib.pyplot as plt
-
 import argparse
+
 import numpy as np
 import torch
 from torch import nn
@@ -10,19 +8,45 @@ import torch.nn.functional as F
 from torchvision import datasets, transforms, models
 from collections import OrderedDict
 import json
-import PIL
-from PIL import Image
 
+def get_input_args():
+    
+    # Create Parse using ArgumentParser
+    parser = argparse.ArgumentParser(description = 'image classification')
+    
 
-# checking for something...
-data_dir = 'flowers'
-train_dir = data_dir + '/train'
-valid_dir = data_dir + '/valid'
-test_dir = data_dir + '/test'
+    parser.add_argument('--data_dir', type = str, default="./flowers",
+                                 help = 'path to the flowers images')
+    parser.add_argument('--gpu', action = "store", default = 'gpu',
+                                 help = 'selecting gpu / cpu')
+    parser.add_argument('--arch',type= str, default = 'vgg16',
+                                 help = 'path to architecture moduel')
+    parser.add_argument('--save_dir', type = str, default='checkpoint.pth',
+                                 help = ' path to save checkpoint')
+    parser.add_argument('--epochs', type = int, default = 3,
+                                 help='Number of Epochs')
+    parser.add_argument('--input_size', type = int, default = 25088,
+                                 help='Number of Epochs')
+    parser.add_argument('--learning_rate', type = int, default = 0.003,
+                                 help='learning rate')
+    parser.add_argument('--dropout', type = int, default = 0.2,
+                                 help='dropout')
+    
+    return parser.parse_args()
+
+#data_dir = 'flowers'
+#data_dir = in_arg.data_dir 
+#train_dir = data_dir + '/train'
+#valid_dir = data_dir + '/valid'
+#test_dir = data_dir + '/test'
 
 # Define your transforms for the training, validation, and testing sets
 def model_transformation(load_data):
-
+    
+    train_dir = load_data + '/train'
+    valid_dir = load_data + '/valid'
+    test_dir = load_data + '/test'
+   
     data_transforms = {
                        'train_transforms': transforms.Compose([transforms.RandomRotation(30),
                                            transforms.RandomResizedCrop(224),
@@ -55,25 +79,35 @@ def model_transformation(load_data):
                   }
 
     return data_transforms, image_datasets, dataloader
-# label mapping
-def mapping(category_name):
-    with open(category_name, 'r') as f:
-        cat_to_name = json.load(f)    
-    return cat_to_name
+
 # Build and train your network
 
 def classify_network(arch, m_dropout, lr):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    if arch == 'vgg16':
+        model = models.vgg16(pretrained=True)
+        input_size = 25088
+        hidden_layer1 = 1024
+    elif arch == 'vgg19':
+        model = models.vgg19(pretrained=True)
+        input_size = 25088
+        hidden_layer1 = 1024
+    elif arch == 'densenet':
+        model = models.densenet121(pretrained=True)
+        input_size = 1024
+        hidden_layer1 = 256
+    
 
-    model=models.vgg16(pretrained = True)
+   # model=models.vgg16(pretrained = True)
 
     for param in model.parameters():
         param.requires_grad = False
     
-    classifier = nn.Sequential(nn.Linear(25088, 4096),
+    classifier = nn.Sequential(nn.Linear(input_size, hidden_layer1),
                            nn.ReLU(),
                            nn.Dropout(m_dropout),
-                           nn.Linear(4096, 102),
+                           nn.Linear(hidden_layer1, 102),
                            nn.LogSoftmax(dim = 1))
 
 # Now we neeed to attached this to our model.
@@ -103,11 +137,11 @@ def validation(model, valid_loader, criterion):
 
     return validation_loss, accuracy
 
-def train(device, model, dataloader, optimizer, criterion):
+def train(device, model, epoch_s, dataloader, optimizer, criterion):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Do validation on the test set
-    epochs =5
+    epochs = epoch_s
     # number of step we will take
     steps =0
     running_loss = 0
@@ -145,67 +179,36 @@ def train(device, model, dataloader, optimizer, criterion):
                 # now we need to set out training loss back to zero and model back to training 
                 running_loss = 0
                 model.train()
-                
+    return model                
 # TODO: Do validation on the test set
-def network_test(device, model, dataloader, optimizer, criterion):
+def network_test(device, model, dataloader, criterion):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    epochs =3
-# number of step we will take
-    steps =0
-    running_loss = 0
-    print_every = 50
-# loop over epochs
-    for epoch in range (epochs):
-    
-        for images, labels in dataloader['trainloader']:
-            steps += 1        
-        # need to move images and labels to GPU or CPU whichever is avialable.
-            images, labels = images.to(device), labels.to(device)        
-            optimizer.zero_grad()        
-            logps = model.forward(images)        
-            loss = criterion(logps, labels)        
-        # for backpropagation
-            loss.backward()        
-            optimizer.step()        
-        # tracking loss as we fectching more data
-            running_loss += loss.item()        
-        # test our data for accuracy and validation
-            if steps % print_every == 0:            
-            #lets put our model in evaluation to test data for validation
-                model.eval() 
-                model.to(device)
-                test_loss = 0
-                accuracy = 0
-                with torch.no_grad():
-                    for images, labels in dataloader['testloader']:
-                        images, labels = images.to(device), labels.to(device)                
-                        logps = model.forward(images)
-                        batch_loss = criterion(logps, labels)                
-                        test_loss += batch_loss.item()                
-                    # calculate accuracy
-                        ps = torch.exp(logps)
-                        top_p, top_class = ps.topk(1, dim =1)                
-                        equality = top_class == labels.view(*top_class.shape)
-                        accuracy += torch.mean(equality.type(torch.FloatTensor)).item()
-                    
-                    print(f"Epochs {epoch+1}/{epochs}.. "
-                      f"Train loss: {running_loss/print_every:.3f}.. "
-                      f"test_loss: {test_loss/len(dataloader['testloader']):.3f}.. "
-                      f"Test accuracy: {accuracy/len(dataloader['testloader']):.3f}")
+    test_loss = 0
+    accuracy = 0
+    model.eval() 
+    with torch.no_grad():
+        for images, labels in dataloader['testloader']:
+            images, labels = images.to(device), labels.to(device)                
+            logps = model.forward(images)
+            batch_loss = criterion(logps, labels)                
+            test_loss += batch_loss.item()                
+            #calculate accuracy
+            ps = torch.exp(logps)
+            top_p, top_class = ps.topk(1, dim =1)                
+            equality = top_class == labels.view(*top_class.shape)
+            accuracy += torch.mean(equality.type(torch.FloatTensor)).item()
+        print('network accuracy: %d %%' % (100 * accuracy / len(dataloader['testloader'])))
 
-                # now we need to set out training loss back to zero and model back to training 
-                    running_loss = 0
-                    model.train()
-# Save the checkpoint -
-def checkpoint(model, image_datasets, optimizer, learning_rate, epoch_s):
+# Save the checkpoint 
+def checkpoint(arch, model, image_datasets, optimizer, learning_rate, epoch_s, input_size):
     
     model.class_to_idx = image_datasets['train_data'].class_to_idx
 
-    checkpoint = {'arch': 'vgg16',
-                  'epochs':epoch_s,
-                  'input_size': 25088,
+    checkpoint = {'arch': arch,
+                  'epochs': epoch_s,
+                  'input_size': input_size,
                   'output_size': 102,
-                  'hidden_layer_size': 4096,
+                  #'hidden_layer_size': 1024,
                   'learning_rate': learning_rate,
                   'classifier': model.classifier,
                   'state_dict': model.state_dict(),
@@ -213,19 +216,47 @@ def checkpoint(model, image_datasets, optimizer, learning_rate, epoch_s):
                   'optimizer': optimizer}
 
     torch.save(checkpoint, 'checkpoint.pth')
+   
+    
     return None
 
-#Write a function that loads a checkpoint and rebuilds the model
-def load_checkpoint(filepath):
-    checkpoint = torch.load(filepath, map_location=lambda storage, loc: storage)
-    if checkpoint['arch'] == "vgg16":
-        model=models.vgg16(pretrained = True)
-    model.classifier = checkpoint['classifier']
-    model.load_state_dict(checkpoint['state_dict'])
-    model.optimizer = checkpoint['optimizer']
-    model.class_to_idx = checkpoint['class_to_idx']
     
-    for param in model.parameters():
-        param.requires_grad = False   
-                          
-    return model
+    #'optimizer_state_dict': optimizer.state_dict()
+# TODO: Write a function that loads a checkpoint and rebuilds the model
+def main():
+ 
+    
+    in_arg = get_input_args()                                                                                   
+    data_dir = in_arg.data_dir                                                                               
+    train_dir = data_dir + '/train'
+    test_dir = data_dir + '/test'
+    valid_dir = data_dir + '/valid'
+    
+    
+    
+    arch = in_arg.arch
+    device_model = in_arg.gpu
+    lr = in_arg.learning_rate
+    save_checkpoint = in_arg.save_dir
+    #category_name = in_arg.cat_name
+    epoch_s = in_arg.epochs
+    input_size = in_arg.input_size
+    dropout = in_arg.dropout
+    
+
+    #path = ('./flowers/test/34/image_06961.jpg')
+    #path = ('./flowers/test/10/image_07090.jpg')
+    #path = ('./flowers/test/34/image_06961.jpg')
+    
+    #Function that checks command line arguments using in_arg  
+    
+    data_transforms, image_datasets, dataloader = model_transformation(data_dir)
+    model, criterion, optimizer = classify_network(arch, dropout, lr)
+    #train(device_model, model, epoch_s, dataloader, optimizer, criterion)
+    network_test(device_model, model, dataloader, criterion)
+    checkpoint(arch, model, image_datasets, optimizer, lr, epoch_s, input_size)
+ 
+    
+    
+if __name__ == "__main__":
+    main()
