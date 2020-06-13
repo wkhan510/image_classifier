@@ -5,22 +5,54 @@ from torch import optim
 import torch.nn.functional as F
 from torchvision import datasets, transforms, models
 from PIL import Image
-from train import load_checkpoint
+import json
+import argparse
 
-
-
-
-#def load_checkpoint(filepath):
-    #checkpoint = torch.load(filepath, map_location=lambda storage, loc: storage)
-    #model=models.vgg16(pretrained = True)
-    #model.arch = checkpoint['arch']
-    #model.classifier = checkpoint['classifier']  
-    #model.class_to_idx = checkpoint['class_to_idx']
-    #model.optimizer = checkpoint['optimizer']
-    #model.load_state_dict(checkpoint['state_dict'])
+def get_input_args():
     
-    #return model
+    # Create Parse using ArgumentParser
+    parser = argparse.ArgumentParser(description = 'image classification')
+    
+    
+    # command line arguments as mentioned above using add_argument() from ArguementParser method
+    #parser.add_argument('--test_image', type = str, 
+                                 #help = 'path to the test image')
+    parser.add_argument('--test_image', type = str, default='./flowers/test/20/image_04910.jpg',
+                                 help = 'path to the test image')
+    parser.add_argument('--gpu', action = "store", default='gpu',
+                                 help = 'selecting gpu / cpu')
+    parser.add_argument('--save_dir', type = str, default='checkpoint.pth',
+                                 help = ' path to save checkpoint')
+    parser.add_argument('--category_name', type = str, default='cat_to_name.json', 
+                                 help='Path of Mapping flower Name')
+    parser.add_argument('--top_k', type = int, default = 5, 
+                         help = 'top k for classes')
 
+
+
+    return parser.parse_args()
+
+# label mapping
+def mapping(category_name):
+    with open(category_name, 'r') as f:
+        cat_to_name = json.load(f)    
+    return cat_to_name
+
+
+def load_checkpoint(filepath):
+    checkpoint = torch.load(filepath, map_location=lambda storage, loc: storage)
+    if checkpoint['arch'] == "vgg16":
+        model=models.vgg16(pretrained = True)
+    model.classifier = checkpoint['classifier']
+    model.load_state_dict(checkpoint['state_dict'])
+    model.optimizer = checkpoint['optimizer']
+    model.class_to_idx = checkpoint['class_to_idx']
+    
+    for param in model.parameters():
+        param.requires_grad = False   
+                          
+    return model
+   
 def process_image(image):
     ''' Scales, crops, and normalizes a PIL image for a PyTorch model,
         returns an Numpy array
@@ -35,14 +67,8 @@ def process_image(image):
         image.thumbnail((256, (height/width)*256))
     
     new_width, new_height = image.size
-    
-    
-    # print(image.size)
     # cropping the image
     cropped_image = image.crop(((new_width-224)/2, (new_height-224)/2, (new_width+224)/2, (new_height+224)/2 ))
-    
-    # print(cropped_image.size)
-    # coverting image to numpy array, color channel encoded integers are 0-255, but we model need (0-1)
     np_image = np.array(cropped_image)/255
     
     
@@ -69,9 +95,7 @@ def predict(image_path, model, topk):
     image = image.numpy()
 
     image= torch.from_numpy(image).type(torch.FloatTensor)
-    # for using gpu we need to do the following change
-    #image = torch.from_numpy(image).type(torch.cuda.FloatTensor)
-    
+ 
     image = image.unsqueeze(0)
     image = image.to(device)
     
@@ -81,28 +105,40 @@ def predict(image_path, model, topk):
         ps = torch.exp(logps)
     
         top_ps, top_class = ps.topk(topk, dim = 1)
-        #top_class = top_class.cpu().numpy() # testing
-       # top_class = top_class.cpu().numpy()[0].tolist()
-    #idx_to_class={val:key for key,val in model.class_to_idx.items()}
-        
-        #Converting the indices to class
-        
-        #top_pred = top_ps.data.numpy()[0]
-    top_pred = top_ps.tolist()[0] # test 
-        #pred_indexes = top_class.data.numpy()[0].tolist()
-    # pred_indexes = top_class.cpu().numpy()[0].tolist() # test
-    class_to_idx = model.class_to_idx  #test
+
+    top_pred = top_ps.tolist()[0] 
+    class_to_idx = model.class_to_idx 
     idx_to_class = {v: k for k, v in model.class_to_idx.items()}
     top_labels = [idx_to_class[x.item()] for x in top_class[0].data]
-    # pred_labels = [idx_to_class[x] for x in pred_indexes]
-        
-        
-    #return top_ps, top_class
+
     return top_pred, top_labels
-#path = ('./flowers/test/10/image_07090.jpg')
-#path = ('./flowers/test/34/image_06961.jpg')
-#path = "./flowers/test/102/image_08012.jpg"
-#probs, classes = predict(path, load_checkpoint('checkpoint.pth'))
-#probs, classes = predict(image_path, model)
-#print(probs)
-#print(classes)
+
+def main():
+
+    in_arg = get_input_args()                                                                                   
+   # data_dir = in_arg.data_dir
+    cat_name = in_arg.category_name
+    save_checkpoint = in_arg.save_dir
+    test_image = in_arg.test_image
+    top_k = in_arg.top_k
+    
+    #path = ('./flowers/test/34/image_06961.jpg')
+    #path = ('./flowers/test/10/image_07090.jpg')  
+    #path = ('./flowers/test/15/image_06351.jpg')
+    #path = ('./flowers/test/19/image_06155.jpg')
+     #path = ('./flowers/test/12/image_04023.jpg')
+    #path = ('./flowers/test/20/image_04910.jpg')  
+    cat_to_name = mapping(cat_name)
+    save_model = load_checkpoint(save_checkpoint)
+    
+    probs, classes = predict(test_image, save_model, top_k)
+    #print('flowers name:', mapping(cat_name))
+    print(probs)
+    print(classes)
+    #print('Flower name is: {} Probability: {} ', format(cat_to_name[classes[0]].title(), str(probs[0])))
+    #print("flower_names", mapping(cat_name))
+ 
+    
+    
+if __name__ == "__main__":
+    main()
