@@ -34,11 +34,6 @@ def get_input_args():
     
     return parser.parse_args()
 
-#data_dir = 'flowers'
-#data_dir = in_arg.data_dir 
-#train_dir = data_dir + '/train'
-#valid_dir = data_dir + '/valid'
-#test_dir = data_dir + '/test'
 
 # Define your transforms for the training, validation, and testing sets
 def model_transformation(load_data):
@@ -82,21 +77,22 @@ def model_transformation(load_data):
 
 # Build and train your network
 
-def classify_network(arch, m_dropout, lr):
+def classify_network(arch,input_size, hidden_units, m_dropout, lr, ):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     if arch == 'vgg16':
         model = models.vgg16(pretrained=True)
-        input_size = 25088
-        hidden_layer1 = 1024
+        input_features = input_size
+        hidden_layers = hidden_units
     elif arch == 'vgg19':
         model = models.vgg19(pretrained=True)
-        input_size = 25088
-        hidden_layer1 = 1024
+        input_features = input_size
+        hidden_layers = hidden_units
     elif arch == 'densenet':
         model = models.densenet121(pretrained=True)
-        input_size = 1024
-        hidden_layer1 = 256
+        input_features = 1024
+        hidden_layers = 512
+
     
 
    # model=models.vgg16(pretrained = True)
@@ -220,9 +216,7 @@ def checkpoint(arch, model, image_datasets, optimizer, learning_rate, epoch_s, i
     
     return None
 
-    
-    #'optimizer_state_dict': optimizer.state_dict()
-# TODO: Write a function that loads a checkpoint and rebuilds the model
+
 def main():
  
     
@@ -231,14 +225,11 @@ def main():
     train_dir = data_dir + '/train'
     test_dir = data_dir + '/test'
     valid_dir = data_dir + '/valid'
-    
-    
-    
+
     arch = in_arg.arch
     device_model = in_arg.gpu
     lr = in_arg.learning_rate
     save_checkpoint = in_arg.save_dir
-    #category_name = in_arg.cat_name
     epoch_s = in_arg.epochs
     input_size = in_arg.input_size
     dropout = in_arg.dropout
@@ -252,7 +243,7 @@ def main():
     
     data_transforms, image_datasets, dataloader = model_transformation(data_dir)
     model, criterion, optimizer = classify_network(arch, dropout, lr)
-    #train(device_model, model, epoch_s, dataloader, optimizer, criterion)
+    train(device_model, model, epoch_s, dataloader, optimizer, criterion)
     network_test(device_model, model, dataloader, criterion)
     checkpoint(arch, model, image_datasets, optimizer, lr, epoch_s, input_size)
  
